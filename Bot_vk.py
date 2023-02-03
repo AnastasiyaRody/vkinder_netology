@@ -3,7 +3,7 @@ from random import randrange
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
 import requests
-
+from pprint import pprint
 
 with open("tokenAPI_VK.txt", "r") as file_object:
     token_vk = file_object.read().strip()
@@ -19,7 +19,7 @@ class VkApiClient:
             "access_token": self.token_vk,
             "v": self.api_version,
             "offset": 10,
-            "count": 5
+            "count": 3
         }
 
     def get_user_info(self, user_ids: str):
@@ -32,17 +32,37 @@ class VkApiClient:
 
     def user_seach_friend(self, list_of_parameters: list):
         params = {
-            "relation": 6,
+            "status": "6",
             "sex": list_of_parameters[0],
-            "title": list_of_parameters[1],
+            "hometown": list_of_parameters[1],
             "age_from": list_of_parameters[2],
             "age_to": list_of_parameters[3],
             "has_photo": 1,
             "fields": "photo_max_orig"
         }
-        res = requests.get(f"{self.base_url}/method/users.search", params={**params, **self.general_params()}).json()[
-            'response']['items']
+        res = requests.get(f"{self.base_url}/method/users.search", params={**params, **self.general_params()}).json()['response']['items']
         return res
+
+
+    def get_photos(self, owner_id):
+        params = {
+            'owner_id': owner_id,
+            'album_id': "profile",
+            'extended': "likes",
+            'rev': 0
+        }
+        res = requests.get(f"{self.base_url}/method/photos.get", params={**params, **self.general_params()}).json()
+        photo_list = []
+
+        for photo in res['response']['items']:
+            result = [{'likes': photo['likes']['count'],
+                       'photo_id': photo['id']
+                       }]
+            photo_list.append(result)
+
+        photo_res = sorted(photo_list, key=lambda x: x[0]['likes'], reverse=True)
+        photo_res = photo_res[0:3]
+        return photo_res
 
 
 with open(file="token_gr.txt", mode='r') as file_object:
@@ -58,7 +78,7 @@ def get_name(user_id: int):
     data = vk.method("users.get", {"user_ids": user_id})[0]
     return f"{data['first_name']} {data['last_name']}"
 
-def get_sex(user_id: int):
+def get_sex(user_id):
     for key, value in info_user[0].items():
         if key == 'sex':
            sex_user=value
@@ -71,7 +91,15 @@ def get_sex(user_id: int):
 
 
 def write_msg(user_id, message):
-    vk.method('messages.send', {'user_id': user_id, 'message': message, 'random_id': randrange(10 ** 7), })
+    vk.method('messages.send', {'user_id': user_id,  'message': message, 'random_id': randrange(10 ** 7) })
+
+def send_photo(user_id, friend_id, friend_photos: list ):
+    photo_id_list=[]
+    for i in range(len(friend_photos)):
+        photo_id_list.append(friend_photos[i][0]['photo_id'])
+    for id_photo in photo_id_list:
+        vk.method('messages.send', {'user_id': user_id,'message': message, 'random_id': randrange(10 ** 7), 'attachment': f'photo{friend_id}_{id_photo}'})
+
 
 for event in longpoll.listen():
     if event.type == VkEventType.MESSAGE_NEW and event.to_me:
@@ -112,10 +140,10 @@ for event in longpoll.listen():
                                                         write_msg(event.user_id, f'Ищу ')
                                                         res=vk_client.user_seach_friend(list_of_parameters=list_of_parameters)
                                                         for user in res:
-                                                            write_msg(event.user_id, f"{user['last_name']} {user['first_name']} https://vk.com/id{user['id']},  {user['photo_max_orig']}")
-
+                                                            write_msg(event.user_id, f"{user['last_name']} {user['first_name']}, https://vk.com/id{user['id']}")
+                                                            user_photos = vk_client.get_photos(user['id'])
+                                                            send_photo(3237652,user['id'], user_photos)
 
         else:
             write_msg(event.user_id, 'Пишешь невразумительно, давай понятнее выражайся!')
-
 pprint(user_seach_friend(list_of_parametrs))
