@@ -1,4 +1,4 @@
-import random
+#import random
 from random import randrange
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
@@ -51,10 +51,10 @@ class VkApiClient:
             'extended': "likes",
             'rev': 0
         }
-        res = requests.get(f"{self.base_url}/method/photos.get", params={**params, **self.general_params()}).json()
+        res = requests.get(f"{self.base_url}/method/photos.get", params={**params, **self.general_params()}).json()['response']
         photo_list = []
 
-        for photo in res['response']['items']:
+        for photo in res['items']:
             result = [{'likes': photo['likes']['count'],
                        'photo_id': photo['id']
                        }]
@@ -142,6 +142,7 @@ for event in longpoll.listen():
                                                         for user in res:
                                                             write_msg(event.user_id, f"{user['last_name']} {user['first_name']}, https://vk.com/id{user['id']}")
                                                             user_photos = vk_client.get_photos(user['id'])
+                                                            print(user_photos)
                                                             send_photo(3237652,user['id'], user_photos)
 
         else:
